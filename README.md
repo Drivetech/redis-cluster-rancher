@@ -6,9 +6,9 @@ Rancher template for Redis Sentinel Cluster
 
 In Rancher's UI, go to **Admin/Settings** and add a new custom catalog:
 
-| Name            | URL                                                   | Branch |
-| --------------- | ----------------------------------------------------- | ------ |
-| MongoDB Sharded | https://github.com/lgaticaq/redis-cluster-rancher.git | master |
+| Name          | URL                                                   | Branch |
+| ------------- | ----------------------------------------------------- | ------ |
+| Redis Cluster | https://github.com/lgaticaq/redis-cluster-rancher.git | master |
 
 ## Templates
 
