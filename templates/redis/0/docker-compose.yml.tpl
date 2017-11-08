@@ -73,7 +73,8 @@ services:
 volumes:
   redis-master:
     external: true
-    driver: rancher-ebs
+    per_container: true
+    driver: '${VOLUME_DRIVER}'
     driver_opts:
       size: '${VOLUME_DRIVER_SIZE}'
       volumeType: '${VOLUME_DRIVER_TYPE}'
@@ -82,7 +83,8 @@ volumes:
 
   redis-slave:
     external: true
-    driver: rancher-ebs
+    per_container: true
+    driver: '${VOLUME_DRIVER}'
     driver_opts:
       size: '${VOLUME_DRIVER_SIZE}'
       volumeType: '${VOLUME_DRIVER_TYPE}'

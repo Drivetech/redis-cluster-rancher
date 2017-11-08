@@ -10,9 +10,10 @@
         - "4.0"
         - "3.2"
       required: true
-      label: "REdis version"
+      label: "Redis version"
     - variable: REDIS_PASSWORD
-      type: password
+      type: string
+      default: "mySecretPassword"
       required: true
       label: "Redis auth password"
     - variable: REDIS_HAPROXY_PORT
@@ -40,24 +41,34 @@
       required: true
       default: "redis=sentinel"
       label: "Host label for sentinel and lb nodes"
+    - variable: "VOLUME_DRIVER"
+      label: "Volume Driver"
+      required: true
+      default: "rancher-ebs"
+      type: enum
+      options:
+        - local
+        - rancher-nfs
+        - rancher-efs
+        - rancher-ebs
     - variable: VOLUME_DRIVER_SIZE
       type: int
-      required: true
+      required: false
       default: 10
       label: "Size of the EBS volume"
     - variable: VOLUME_DRIVER_TYPE
       type: string
-      required: true
+      required: false
       default: "gp2"
       label: "Type of volume"
     - variable: VOLUME_DRIVER_AZ
       type: string
-      required: true
+      required: false
       default: "us-east-1a"
       label: "The specific availability zone to create containers and EBS volume"
     - variable: VOLUME_DRIVER_IOPS
       type: int
-      required: true
+      required: false
       default: 3000
       label: "IOPS option"
 
@@ -76,7 +87,7 @@ services:
       certs: []
       config: "default\n\tmode tcp\n\ttimeout connect 3s\n\ttimeout server 6s\n\t\
         timeout client 6s\n\nbackend 6379_\n\toption tcplog\n\toption tcp-check\n\t\
-        tcp-check send AUTH\\ ${REDIS_PASSWORD}\\r\\n\n\ttcp-check\
+        tcp-check send AUTH\\ mySecretPassword\\r\\n\n\ttcp-check\
         \ expect string +OK\n\ttcp-check send PING\\r\\n\n\ttcp-check expect string\
         \ +PONG\n\ttcp-check send info\\ replication\\r\\n\n\ttcp-check expect string\
         \ role:master\n\ttcp-check send QUIT\\r\\n\n\ttcp-check expect string +OK"
