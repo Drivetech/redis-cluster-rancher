@@ -18,7 +18,7 @@
       required: true
     - variable: REDIS_NODES
       label: Number of redis nodes
-      description: Set 1 for only one master or more if add one or more slaves
+      description: Number of Redis server nodes to launch.
       type: int
       default: 1
       required: true
@@ -28,11 +28,11 @@
       default: 6379
       required: true
     - variable: REDIS_SERVER_HOST_LABEL
-      label: "Host label for redis server node"
+      label: "Host label for redis server node (Optional)"
       type: string
       required: false
     - variable: REDIS_SENTINEL_HOST_LABEL
-      label: "Host label for sentinel and lb"
+      label: "Host label for sentinel and lb (Optional)"
       type: string
       required: false
     - variable: SENTINEL_QUORUM
