@@ -1,92 +1,105 @@
 version: '2'
 
 services:
-  master:
-    image: redis:${REDIS_VERSION}-alpine
+  redis-server:
+    image: ${REDIS_VERSION}
     environment:
       REDIS_PASSWORD: '${REDIS_PASSWORD}'
     stdin_open: true
-    volumes:
-    - redis-master:/data
     tty: true
+    labels:
+      {{- if ne .Values.REDIS_SERVER_HOST_LABEL ""}}
+      io.rancher.scheduler.affinity:host_label: ${REDIS_SERVER_HOST_LABEL}
+      {{- end}}
+      io.rancher.container.start_once: 'true'
+      io.rancher.container.pull_image: always
+      io.rancher.sidekicks: redis-server-config
+      io.rancher.scheduler.affinity:container_label_ne: io.rancher.stack_service.name=$${stack_name}/$${service_name}
+      io.rancher.container.hostname_override: container_name
+    volumes_from:
+      - redis-server-config
+    entrypoint: /opt/redis/scripts/server-entrypoint.sh
     command:
-    - redis-server
-    - --appendonly
-    - 'yes'
-    - --masterauth
-    - '${REDIS_PASSWORD}'
-    - --requirepass
-    - '${REDIS_PASSWORD}'
-    labels:
-      io.rancher.container.pull_image: always
-      io.rancher.scheduler.affinity:host_label: '${REDIS_MASTER_HOST_LABEL}'
-      io.rancher.scheduler.affinity:container_label_ne: io.rancher.stack_service.name=$${stack_name}/$${service_name}
+      - "redis-server"
+      - "/usr/local/etc/redis/redis.conf"
 
-  slave:
-    image: redis:${REDIS_VERSION}-alpine
+  redis-sentinel:
+    image: ${REDIS_VERSION}
     environment:
       REDIS_PASSWORD: '${REDIS_PASSWORD}'
+      SENTINEL_QUORUM: '${SENTINEL_QUORUM}'
+      SENTINEL_DOWN_AFTER: '${SENTINEL_DOWN_AFTER}'
+      SENTINEL_FAILOVER: '${SENTINEL_FAILOVER}'
     stdin_open: true
-    volumes:
-    - redis-slave:/data
     tty: true
+    labels:
+      io.rancher.container.pull_image: always
+      {{- if ne .Values.REDIS_SENTINEL_HOST_LABEL ""}}
+      io.rancher.scheduler.affinity:host_label: ${REDIS_SENTINEL_HOST_LABEL}
+      {{- end}}
+      io.rancher.sidekicks: redis-sentinel-config
+      io.rancher.container.hostname_override: container_name
+    volumes_from:
+      - redis-sentinel-config
+    entrypoint: /opt/redis/scripts/sentinel-entrypoint.sh
     command:
-    - redis-server
-    - --appendonly
-    - 'yes'
-    - --slaveof
-    - master
-    - '6379'
-    - --masterauth
-    - '${REDIS_PASSWORD}'
-    - --requirepass
-    - '${REDIS_PASSWORD}'
-    labels:
-      io.rancher.container.pull_image: always
-      io.rancher.scheduler.affinity:host_label: '${REDIS_SLAVE_HOST_LABEL}'
-      io.rancher.scheduler.affinity:container_label_ne: io.rancher.stack_service.name=$${stack_name}/$${service_name}
-
-  sentinel:
-    image: lgatica/redis-sentinel:${REDIS_VERSION}
-    environment:
-      REDIS_PASSWORD: '${REDIS_PASSWORD}'
-    stdin_open: true
-    tty: true
-    links:
-    - master:master
-    ports:
-    - '${REDIS_SENTINEL_PORT}':26379/tcp
-    labels:
-      io.rancher.container.pull_image: always
-      io.rancher.scheduler.affinity:host_label: '${REDIS_SENTINEL_HOST_LABEL}'
-      io.rancher.scheduler.affinity:container_label_ne: io.rancher.stack_service.name=$${stack_name}/$${service_name}
+      - "redis-server"
+      - "/usr/local/etc/redis/sentinel.conf"
+      - "--sentinel"
 
   haproxy:
     image: rancher/lb-service-haproxy:v0.7.9
     ports:
-    - '${REDIS_HAPROXY_PORT}':6379/tcp
+    - ${REDIS_HAPROXY_PORT}:6379/tcp
     labels:
-      io.rancher.scheduler.affinity:host_label: '${REDIS_SENTINEL_HOST_LABEL}'
+      {{- if ne .Values.REDIS_SENTINEL_HOST_LABEL ""}}
+      io.rancher.scheduler.affinity:host_label: ${REDIS_SENTINEL_HOST_LABEL}
+      {{- end}}
       io.rancher.container.agent.role: environmentAdmin
       io.rancher.container.create_agent: 'true'
 
-volumes:
-  redis-master:
-    external: true
-    per_container: true
-    driver: '${VOLUME_DRIVER}'
-    driver_opts:
-      size: '${VOLUME_DRIVER_SIZE}'
-      volumeType: '${VOLUME_DRIVER_TYPE}'
-      ec2_az: '${VOLUME_DRIVER_AZ}'
-      iops: '${VOLUME_DRIVER_IOPS}'
+  redis-server-config:
+    image: lgatica/redis-config
+    environment:
+      REDIS_PASSWORD: '${REDIS_PASSWORD}'
+    stdin_open: true
+    tty: true
+    volumes:
+    - /usr/local/etc/redis
+    - /opt/redis/scripts
+    - redis-server:/data
+    labels:
+      io.rancher.container.pull_image: always
+      io.rancher.container.hostname_override: container_name
+  redis-sentinel-config:
+    image: lgatica/redis-config
+    environment:
+      REDIS_PASSWORD: '${REDIS_PASSWORD}'
+    stdin_open: true
+    tty: true
+    volumes:
+    - /usr/local/etc/redis
+    - /opt/redis/scripts
+    - redis-sentinel:/data
+    labels:
+      io.rancher.container.pull_image: always
+      io.rancher.container.hostname_override: container_name
 
-  redis-slave:
-    external: true
+{{- if or (.Values.REDIS_VOLUME_NAME) (.Values.SENTINEL_VOLUME_NAME)}}
+volumes:
+  {{- if .Values.REDIS_VOLUME_NAME}}
+  {{.Values.REDIS_VOLUME_NAME}}:
     per_container: true
-    driver: '${VOLUME_DRIVER}'
-    driver_opts:
-      size: '${VOLUME_DRIVER_SIZE}'
-      volumeType: '${VOLUME_DRIVER_TYPE}'
-      ec2_az: '${VOLUME_DRIVER_AZ}'
-      iops: '${VOLUME_DRIVER_IOPS}'
+    {{- if .Values.STORAGE_DRIVER}}
+    driver: {{.Values.STORAGE_DRIVER}}
+    {{- end}}
+  {{- end}}
+
+  {{- if .Values.SENTINEL_VOLUME_NAME}}
+  {{.Values.SENTINEL_VOLUME_NAME}}:
+    per_container: true
+    {{- if .Values.STORAGE_DRIVER}}
+    driver: {{.Values.STORAGE_DRIVER}}
+    {{- end}}
+  {{- end}}
+{{- end }}

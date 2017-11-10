@@ -5,79 +5,84 @@
     Redis Sentinel Cluster
   questions:
     - variable: REDIS_VERSION
+      label: "Redis version"
       type: enum
       options:
-        - "4.0"
-        - "3.2"
+        - redis:4.0.2-alpine
+        - redis:3.2.11-alpine
+      default: redis:4.0.2-alpine
       required: true
-      label: "Redis version"
     - variable: REDIS_PASSWORD
-      type: string
-      default: "mySecretPassword"
-      required: true
       label: "Redis auth password"
+      type: password
+      required: true
+    - variable: REDIS_NODES
+      label: Number of redis nodes
+      description: Set 1 for only one master or more if add one or more slaves
+      type: int
+      default: 1
+      required: true
     - variable: REDIS_HAPROXY_PORT
-      type: int
-      required: true
-      default: 6379
       label: "Redis port"
-    - variable: REDIS_SENTINEL_PORT
       type: int
+      default: 6379
       required: true
-      default: 26379
-      label: "Sentinel port"
-    - variable: REDIS_MASTER_HOST_LABEL
+    - variable: REDIS_SERVER_HOST_LABEL
+      label: "Host label for redis server node"
       type: string
-      required: true
-      default: "redis=master"
-      label: "Host label for master node"
-    - variable: REDIS_SLAVE_HOST_LABEL
-      type: string
-      required: true
-      default: "redis=slave"
-      label: "Host label for slave node"
+      required: false
     - variable: REDIS_SENTINEL_HOST_LABEL
+      label: "Host label for sentinel and lb"
       type: string
+      required: false
+    - variable: SENTINEL_QUORUM
+      label: Sentinel quorum
+      description: |
+        The number of Sentinel processes that need to detect an error condition in order for a master to be flagged as ODOWN
+      type: int
+      default: 2
       required: true
-      default: "redis=sentinel"
-      label: "Host label for sentinel and lb nodes"
-    - variable: "VOLUME_DRIVER"
-      label: "Volume Driver"
+    - variable: SENTINEL_DOWN_AFTER
+      label: Sentinel down-after-milliseconds
+      description: |
+        The time in milliseconds an instance should not be reachable for a Sentinel starting to think it is down.
+      type: int
+      default: 1000
       required: true
-      default: "rancher-ebs"
+    - variable: SENTINEL_FAILOVER
+      label: Sentinel failover-timeout
+      description: The time to failover the same master again.
+      type: int
+      default: 1000
+      required: true
+    - variable: REDIS_VOLUME_NAME
+      label: Volume Name of server nodes (Optional)
+      description: |
+        To store the redis data.
+        By default this will be a (host scoped) named Docker volume. See "Persistent Storage Driver" for other options.
+      type: string
+      required: false
+    - variable: SENTINEL_VOLUME_NAME
+      label: Volume Name of sentinel nodes (Optional)
+      description: |
+        To store the sentinel data.
+        By default this will be a (host scoped) named Docker volume. See "Persistent Storage Driver" for other options.
+      type: string
+      required: false
+    - variable: STORAGE_DRIVER
+      label: Volume Storage Driver (Optional)
+      description: |
+        To use a stack scoped volume backed by a persistent storage service, select the name
+        of an existing storage driver (see `Infrastructure -> Storage`). This also requires "Volume Name" to be set.
       type: enum
       options:
         - local
         - rancher-nfs
-        - rancher-efs
-        - rancher-ebs
-    - variable: VOLUME_DRIVER_SIZE
-      type: int
       required: false
-      default: 10
-      label: "Size of the EBS volume"
-    - variable: VOLUME_DRIVER_TYPE
-      type: string
-      required: false
-      default: "gp2"
-      label: "Type of volume"
-    - variable: VOLUME_DRIVER_AZ
-      type: string
-      required: false
-      default: "us-east-1a"
-      label: "The specific availability zone to create containers and EBS volume"
-    - variable: VOLUME_DRIVER_IOPS
-      type: int
-      required: false
-      default: 3000
-      label: "IOPS option"
 
 version: '2'
 services:
-  slave:
-    scale: 1
-    start_on_create: true
-  sentinel:
+  redis-sentinel:
     scale: 1
     start_on_create: true
   haproxy:
@@ -85,22 +90,23 @@ services:
     start_on_create: true
     lb_config:
       certs: []
-      config: "default\n\tmode tcp\n\ttimeout connect 3s\n\ttimeout server 6s\n\t\
-        timeout client 6s\n\nbackend 6379_\n\toption tcplog\n\toption tcp-check\n\t\
-        tcp-check send AUTH\\ mySecretPassword\\r\\n\n\ttcp-check\
-        \ expect string +OK\n\ttcp-check send PING\\r\\n\n\ttcp-check expect string\
-        \ +PONG\n\ttcp-check send info\\ replication\\r\\n\n\ttcp-check expect string\
-        \ role:master\n\ttcp-check send QUIT\\r\\n\n\ttcp-check expect string +OK"
+      config: |-
+        backend redis-server
+          option tcplog
+          option tcp-check
+          tcp-check send AUTH\ ${REDIS_PASSWORD}\r\n
+          tcp-check expect string +OK
+          tcp-check send PING\r\n
+          tcp-check expect string +PONG
+          tcp-check send info\ replication\r\n
+          tcp-check expect string role:master
+          tcp-check send QUIT\r\n
+          tcp-check expect string +OK
       port_rules:
       - priority: 1
         protocol: tcp
-        service: master
-        source_port: 6379
-        target_port: 6379
-      - priority: 2
-        protocol: tcp
-        service: slave
-        source_port: 6379
+        service: redis-server
+        source_port: ${REDIS_HAPROXY_PORT}
         target_port: 6379
     health_check:
       healthy_threshold: 2
@@ -109,7 +115,8 @@ services:
       unhealthy_threshold: 3
       initializing_timeout: 60000
       interval: 2000
+      strategy: recreate
       reinitializing_timeout: 60000
-  master:
-    scale: 1
-    start_on_create: true
+  redis-server:
+    scale: ${REDIS_NODES}
+    retain_ip: true
