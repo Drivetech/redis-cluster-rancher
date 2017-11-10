@@ -89,7 +89,7 @@ services:
 volumes:
   {{- if .Values.REDIS_VOLUME_NAME}}
   {{.Values.REDIS_VOLUME_NAME}}:
-    per_container: true
+    external: true
     {{- if .Values.STORAGE_DRIVER}}
     driver: {{.Values.STORAGE_DRIVER}}
     {{- end}}
@@ -97,7 +97,7 @@ volumes:
 
   {{- if .Values.SENTINEL_VOLUME_NAME}}
   {{.Values.SENTINEL_VOLUME_NAME}}:
-    per_container: true
+    external: true
     {{- if .Values.STORAGE_DRIVER}}
     driver: {{.Values.STORAGE_DRIVER}}
     {{- end}}
