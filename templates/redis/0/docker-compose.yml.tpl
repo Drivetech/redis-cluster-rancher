@@ -11,7 +11,6 @@ services:
       {{- if ne .Values.REDIS_SERVER_HOST_LABEL ""}}
       io.rancher.scheduler.affinity:host_label: ${REDIS_SERVER_HOST_LABEL}
       {{- end}}
-      io.rancher.container.start_once: 'true'
       io.rancher.container.pull_image: always
       io.rancher.sidekicks: redis-server-config
       io.rancher.scheduler.affinity:container_label_ne: io.rancher.stack_service.name=$${stack_name}/$${service_name}
@@ -71,6 +70,7 @@ services:
     labels:
       io.rancher.container.pull_image: always
       io.rancher.container.hostname_override: container_name
+      io.rancher.container.start_once: 'true'
   redis-sentinel-config:
     image: lgatica/redis-config
     environment:
@@ -84,6 +84,7 @@ services:
     labels:
       io.rancher.container.pull_image: always
       io.rancher.container.hostname_override: container_name
+      io.rancher.container.start_once: 'true'
 
 {{- if or (.Values.REDIS_VOLUME_NAME) (.Values.SENTINEL_VOLUME_NAME)}}
 volumes:
