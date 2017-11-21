@@ -55,43 +55,29 @@
       type: int
       default: 1000
       required: true
-    - variable: REDIS_VOLUME_NAME
+    - variable: REDIS_VOLUME_PATH
       label: Volume Name of server nodes (Optional)
-      description: |
-        To store the redis data.
-        By default this will be a (host scoped) named Docker volume. See "Persistent Storage Driver" for other options.
+      description: To store the redis data.
       type: string
       required: false
-    - variable: SENTINEL_VOLUME_NAME
+    - variable: SENTINEL_VOLUME_PATH
       label: Volume Name of sentinel nodes (Optional)
-      description: |
-        To store the sentinel data.
-        By default this will be a (host scoped) named Docker volume. See "Persistent Storage Driver" for other options.
+      description: To store the sentinel data.
       type: string
-      required: false
-    - variable: STORAGE_DRIVER
-      label: Volume Storage Driver (Optional)
-      description: |
-        To use a stack scoped volume backed by a persistent storage service, select the name
-        of an existing storage driver (see `Infrastructure -> Storage`). This also requires "Volume Name" to be set.
-      type: enum
-      options:
-        - local
-        - rancher-nfs
       required: false
 
 version: '2'
 services:
-  redis-sentinel:
+  sentinel:
     scale: 1
-    start_on_create: true
-  haproxy:
+    retain_ip: true
+  redis-lb:
     scale: 1
-    start_on_create: true
+    retain_ip: true
     lb_config:
       certs: []
       config: |-
-        backend redis-server
+        backend redis
           option tcplog
           option tcp-check
           tcp-check send AUTH\ ${REDIS_PASSWORD}\r\n
@@ -105,7 +91,7 @@ services:
       port_rules:
       - priority: 1
         protocol: tcp
-        service: redis-server
+        service: redis
         source_port: ${REDIS_HAPROXY_PORT}
         target_port: 6379
     health_check:
@@ -117,6 +103,6 @@ services:
       interval: 2000
       strategy: recreate
       reinitializing_timeout: 60000
-  redis-server:
+  redis:
     scale: ${REDIS_NODES}
     retain_ip: true

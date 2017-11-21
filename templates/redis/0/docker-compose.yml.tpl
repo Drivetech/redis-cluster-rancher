@@ -1,7 +1,7 @@
 version: '2'
 
 services:
-  redis-server:
+  redis:
     image: ${REDIS_VERSION}
     environment:
       REDIS_PASSWORD: '${REDIS_PASSWORD}'
@@ -12,17 +12,20 @@ services:
       io.rancher.scheduler.affinity:host_label: ${REDIS_SERVER_HOST_LABEL}
       {{- end}}
       io.rancher.container.pull_image: always
-      io.rancher.sidekicks: redis-server-config
+      io.rancher.sidekicks: redis-config{{- if ne .Values.REDIS_VOLUME_PATH ""}}, redis-data{{- end}}
       io.rancher.scheduler.affinity:container_label_ne: io.rancher.stack_service.name=$${stack_name}/$${service_name}
       io.rancher.container.hostname_override: container_name
     volumes_from:
-      - redis-server-config
+      - redis-config
+      {{- if ne .Values.REDIS_VOLUME_PATH ""}}
+      - redis-data
+      {{- end}}
     entrypoint: /opt/redis/scripts/server-entrypoint.sh
     command:
       - "redis-server"
       - "/usr/local/etc/redis/redis.conf"
 
-  redis-sentinel:
+  sentinel:
     image: ${REDIS_VERSION}
     environment:
       REDIS_PASSWORD: '${REDIS_PASSWORD}'
@@ -36,17 +39,20 @@ services:
       {{- if ne .Values.REDIS_SENTINEL_HOST_LABEL ""}}
       io.rancher.scheduler.affinity:host_label: ${REDIS_SENTINEL_HOST_LABEL}
       {{- end}}
-      io.rancher.sidekicks: redis-sentinel-config
+      io.rancher.sidekicks: sentinel-config{{- if ne .Values.SENTINEL_VOLUME_PATH ""}}, sentinel-data{{- end}}
       io.rancher.container.hostname_override: container_name
     volumes_from:
-      - redis-sentinel-config
+      - sentinel-config
+      {{- if ne .Values.SENTINEL_VOLUME_PATH ""}}
+      - sentinel-data
+      {{- end}}
     entrypoint: /opt/redis/scripts/sentinel-entrypoint.sh
     command:
       - "redis-server"
       - "/usr/local/etc/redis/sentinel.conf"
       - "--sentinel"
 
-  haproxy:
+  redis-lb:
     image: rancher/lb-service-haproxy:v0.7.9
     ports:
     - ${REDIS_HAPROXY_PORT}:6379/tcp
@@ -57,7 +63,7 @@ services:
       io.rancher.container.agent.role: environmentAdmin
       io.rancher.container.create_agent: 'true'
 
-  redis-server-config:
+  redis-config:
     image: lgatica/redis-config
     environment:
       REDIS_PASSWORD: '${REDIS_PASSWORD}'
@@ -66,12 +72,16 @@ services:
     volumes:
     - /usr/local/etc/redis
     - /opt/redis/scripts
-    - redis-server:/data
     labels:
+      {{- if ne .Values.REDIS_SERVER_HOST_LABEL ""}}
+      io.rancher.scheduler.affinity:host_label: ${REDIS_SERVER_HOST_LABEL}
+      {{- end}}
       io.rancher.container.pull_image: always
       io.rancher.container.hostname_override: container_name
       io.rancher.container.start_once: 'true'
-  redis-sentinel-config:
+    entrypoint: /bin/true
+
+  sentinel-config:
     image: lgatica/redis-config
     environment:
       REDIS_PASSWORD: '${REDIS_PASSWORD}'
@@ -80,27 +90,39 @@ services:
     volumes:
     - /usr/local/etc/redis
     - /opt/redis/scripts
-    - redis-sentinel:/data
     labels:
+      {{- if ne .Values.REDIS_SENTINEL_HOST_LABEL ""}}
+      io.rancher.scheduler.affinity:host_label: ${REDIS_SENTINEL_HOST_LABEL}
+      {{- end}}
       io.rancher.container.pull_image: always
       io.rancher.container.hostname_override: container_name
       io.rancher.container.start_once: 'true'
+    entrypoint: /bin/true
 
-{{- if or (.Values.REDIS_VOLUME_NAME) (.Values.SENTINEL_VOLUME_NAME)}}
-volumes:
-  {{- if .Values.REDIS_VOLUME_NAME}}
-  {{.Values.REDIS_VOLUME_NAME}}:
-    external: true
-    {{- if .Values.STORAGE_DRIVER}}
-    driver: {{.Values.STORAGE_DRIVER}}
-    {{- end}}
+  {{- if .Values.REDIS_VOLUME_PATH}}
+  redis-data:
+    image: busybox
+    labels:
+      {{- if ne .Values.REDIS_SERVER_HOST_LABEL ""}}
+      io.rancher.scheduler.affinity:host_label: ${REDIS_SERVER_HOST_LABEL}
+      {{- end}}
+      io.rancher.container.hostname_override: container_name
+      io.rancher.container.start_once: 'true'
+    volumes:
+      - {{.Values.REDIS_VOLUME_PATH}}:/data
+    entrypoint: /bin/true
   {{- end}}
 
-  {{- if .Values.SENTINEL_VOLUME_NAME}}
-  {{.Values.SENTINEL_VOLUME_NAME}}:
-    external: true
-    {{- if .Values.STORAGE_DRIVER}}
-    driver: {{.Values.STORAGE_DRIVER}}
-    {{- end}}
+  {{- if .Values.SENTINEL_VOLUME_PATH}}
+  sentinel-data:
+    image: busybox
+    labels:
+      {{- if ne .Values.REDIS_SENTINEL_HOST_LABEL ""}}
+      io.rancher.scheduler.affinity:host_label: ${REDIS_SENTINEL_HOST_LABEL}
+      {{- end}}
+      io.rancher.container.hostname_override: container_name
+      io.rancher.container.start_once: 'true'
+    volumes:
+      - {{.Values.SENTINEL_VOLUME_PATH}}:/data
+    entrypoint: /bin/true
   {{- end}}
-{{- end }}
