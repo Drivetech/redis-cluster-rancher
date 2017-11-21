@@ -2,7 +2,7 @@ FROM alpine:3.6@sha256:d6bfc3baf615dc9618209a8d607ba2a8103d9c8a405b3bd8741d88b4b
 
 LABEL maintainer "Leonardo Gatica <lgatica@protonmail.com>"
 
-ENV GIDDYUP_VERSION=0.19.0 CURL_VERSION=7.56.1
+ENV GIDDYUP_VERSION=0.19.0
 
 RUN mkdir -p /opt/redis
 COPY scripts /opt/redis/scripts
