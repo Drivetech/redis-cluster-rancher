@@ -12,7 +12,7 @@ chown $REDIS_USER_ID:$REDIS_GROUP_ID /usr/local/etc/redis/sentinel.conf
 /opt/redis/scripts/giddyup service wait scale --timeout 120
 stack_name=`echo -n $(wget -q -O - http://rancher-metadata/latest/self/stack/name)`
 my_ip=$(/opt/redis/scripts/giddyup ip myip)
-master_ip=$(leader_ip $stack_name redis-server)
+master_ip=$(leader_ip $stack_name redis)
 
 echo "my ip is $my_ip"
 echo "master ip is $master_ip"
