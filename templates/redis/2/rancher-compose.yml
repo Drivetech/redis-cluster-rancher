@@ -1,0 +1,88 @@
+---
+.catalog:
+  name: "Redis Cluster"
+  version: "v2.0.0"
+  description: |
+    Redis Sentinel Cluster
+  questions:
+    - variable: REDIS_VERSION
+      label: "Redis version"
+      type: enum
+      options:
+        - redis:4-alpine
+        - redis:3-alpine
+      default: redis:4-alpine
+      required: true
+    - variable: REDIS_PASSWORD
+      label: "Redis auth password"
+      type: password
+      required: true
+    - variable: REDIS_NODES
+      label: Number of redis nodes
+      description: Number of Redis server nodes to launch.
+      type: int
+      default: 1
+      required: true
+    - variable: SENTINEL_NODES
+      label: Number of sentinel nodes
+      description: Number of Sentinel nodes to launch.
+      type: int
+      default: 1
+      required: true
+    - variable: REDIS_PORT
+      label: "Redis port"
+      type: int
+      default: 6379
+      required: true
+    - variable: SENTINEL_PORT
+      label: "Sentinel port"
+      type: int
+      default: 26379
+      required: true
+    - variable: REDIS_SERVER_HOST_LABEL
+      label: "Host label for redis server node (Optional)"
+      type: string
+      required: false
+    - variable: REDIS_SENTINEL_HOST_LABEL
+      label: "Host label for sentinel (Optional)"
+      type: string
+      required: false
+    - variable: SENTINEL_QUORUM
+      label: Sentinel quorum
+      description: |
+        The number of Sentinel processes that need to detect an error condition in order for a master to be flagged as ODOWN
+      type: int
+      default: 2
+      required: true
+    - variable: SENTINEL_DOWN_AFTER
+      label: Sentinel down-after-milliseconds
+      description: |
+        The time in milliseconds an instance should not be reachable for a Sentinel starting to think it is down.
+      type: int
+      default: 1000
+      required: true
+    - variable: SENTINEL_FAILOVER
+      label: Sentinel failover-timeout
+      description: The time to failover the same master again.
+      type: int
+      default: 1000
+      required: true
+    - variable: REDIS_VOLUME_PATH
+      label: Volume Name of server nodes (Optional)
+      description: To store the redis data.
+      type: string
+      required: false
+    - variable: SENTINEL_VOLUME_PATH
+      label: Volume Name of sentinel nodes (Optional)
+      description: To store the sentinel data.
+      type: string
+      required: false
+
+version: '2'
+services:
+  sentinel:
+    scale: ${SENTINEL_NODES}
+    retain_ip: true
+  redis:
+    scale: ${REDIS_NODES}
+    retain_ip: true
