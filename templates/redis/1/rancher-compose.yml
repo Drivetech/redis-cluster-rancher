@@ -9,9 +9,9 @@
       label: "Redis version"
       type: enum
       options:
-        - redis:4.0.2-alpine
-        - redis:3.2.11-alpine
-      default: redis:4.0.2-alpine
+        - redis:4-alpine
+        - redis:3-alpine
+      default: redis:4-alpine
       required: true
     - variable: REDIS_PASSWORD
       label: "Redis auth password"

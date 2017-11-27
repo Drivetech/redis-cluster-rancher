@@ -64,7 +64,7 @@ services:
       io.rancher.container.create_agent: 'true'
 
   redis-config:
-    image: lgatica/redis-config:1.0.0
+    image: lgatica/redis-config:1
     environment:
       REDIS_PASSWORD: '${REDIS_PASSWORD}'
     stdin_open: true
@@ -82,7 +82,7 @@ services:
     entrypoint: /bin/true
 
   sentinel-config:
-    image: lgatica/redis-config:1.0.0
+    image: lgatica/redis-config:1
     environment:
       REDIS_PASSWORD: '${REDIS_PASSWORD}'
     stdin_open: true
