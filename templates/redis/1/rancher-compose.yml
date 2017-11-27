@@ -1,0 +1,109 @@
+---
+.catalog:
+  name: "Redis Cluster"
+  version: "v1.0.1"
+  description: |
+    Redis Sentinel Cluster
+  questions:
+    - variable: REDIS_VERSION
+      label: "Redis version"
+      type: enum
+      options:
+        - redis:4.0.2-alpine
+        - redis:3.2.11-alpine
+      default: redis:4.0.2-alpine
+      required: true
+    - variable: REDIS_PASSWORD
+      label: "Redis auth password"
+      type: password
+      required: true
+    - variable: REDIS_NODES
+      label: Number of redis nodes
+      description: Number of Redis server nodes to launch.
+      type: int
+      default: 1
+      required: true
+    - variable: REDIS_HAPROXY_PORT
+      label: "Redis port"
+      type: int
+      default: 6379
+      required: true
+    - variable: REDIS_SERVER_HOST_LABEL
+      label: "Host label for redis server node (Optional)"
+      type: string
+      required: false
+    - variable: REDIS_SENTINEL_HOST_LABEL
+      label: "Host label for sentinel and lb (Optional)"
+      type: string
+      required: false
+    - variable: SENTINEL_QUORUM
+      label: Sentinel quorum
+      description: |
+        The number of Sentinel processes that need to detect an error condition in order for a master to be flagged as ODOWN
+      type: int
+      default: 2
+      required: true
+    - variable: SENTINEL_DOWN_AFTER
+      label: Sentinel down-after-milliseconds
+      description: |
+        The time in milliseconds an instance should not be reachable for a Sentinel starting to think it is down.
+      type: int
+      default: 1000
+      required: true
+    - variable: SENTINEL_FAILOVER
+      label: Sentinel failover-timeout
+      description: The time to failover the same master again.
+      type: int
+      default: 1000
+      required: true
+    - variable: REDIS_VOLUME_PATH
+      label: Volume Name of server nodes (Optional)
+      description: To store the redis data.
+      type: string
+      required: false
+    - variable: SENTINEL_VOLUME_PATH
+      label: Volume Name of sentinel nodes (Optional)
+      description: To store the sentinel data.
+      type: string
+      required: false
+
+version: '2'
+services:
+  sentinel:
+    scale: 1
+    retain_ip: true
+  redis-lb:
+    scale: 1
+    retain_ip: true
+    lb_config:
+      certs: []
+      config: |-
+        backend redis
+          option tcplog
+          option tcp-check
+          tcp-check send AUTH\ ${REDIS_PASSWORD}\r\n
+          tcp-check expect string +OK
+          tcp-check send PING\r\n
+          tcp-check expect string +PONG
+          tcp-check send info\ replication\r\n
+          tcp-check expect string role:master
+          tcp-check send QUIT\r\n
+          tcp-check expect string +OK
+      port_rules:
+        - priority: 1
+          protocol: tcp
+          service: redis
+          source_port: ${REDIS_HAPROXY_PORT}
+          target_port: 6379
+    health_check:
+      healthy_threshold: 2
+      response_timeout: 2000
+      port: 42
+      unhealthy_threshold: 3
+      initializing_timeout: 60000
+      interval: 2000
+      strategy: recreate
+      reinitializing_timeout: 60000
+  redis:
+    scale: ${REDIS_NODES}
+    retain_ip: true
