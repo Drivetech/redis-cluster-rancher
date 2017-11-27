@@ -6,6 +6,7 @@ function leader_ip {
 
 REDIS_USER_ID=${REDIS_USER_ID:-100}
 REDIS_GROUP_ID=${REDIS_GROUP_ID:-101}
+APPENDONLY=${APPENDONLY:-yes}
 
 chown $REDIS_USER_ID:$REDIS_GROUP_ID /usr/local/etc/redis/redis.conf
 
@@ -15,7 +16,7 @@ my_ip=$(/opt/redis/scripts/giddyup ip myip)
 master_ip=$(leader_ip $stack_name redis)
 
 sed -i -E "s/^ *bind +.*$/bind 0.0.0.0/g" /usr/local/etc/redis/redis.conf
-sed -i -E "s/^ *appendonly +.*$/appendonly yes/g" /usr/local/etc/redis/redis.conf
+sed -i -E "s/^ *appendonly +.*$/appendonly $APPENDONLY/g" /usr/local/etc/redis/redis.conf
 sed -i -E "s/^ *# +masterauth +(.*)$/masterauth $REDIS_PASSWORD/g" /usr/local/etc/redis/redis.conf
 sed -i -E "s/^ *# +requirepass +(.*)$/requirepass $REDIS_PASSWORD/g" /usr/local/etc/redis/redis.conf
 
